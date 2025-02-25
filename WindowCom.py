@@ -1,51 +1,15 @@
 import queue
-from struct import unpack
-
 import serial
 import struct
 import tkinter as tk
+
 from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk)
+    FigureCanvasTkAgg)
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 from collections import deque
 from threading import Thread
 
-DATA_SIZE = 4
-
-# def test1(ser: serial.Serial):
-#     line = ser.readline()
-#     try:
-#         decoded = line.decode().strip()
-#         num = int(decoded)
-#         print("Получена число:", num, "Её квадрат:", num ** 2)
-#     except:
-#         print("Получены байты:", line)
-#
-# def test2(ser: serial.Serial):
-#     data = ser.read(DATA_SIZE)
-#     print("Получены байты:", data)
-#     num, num2, num3 = struct.unpack("ifi", data)
-#     print(num, num2, num3)
-#
-#
-# with serial.Serial(PORT, BAUDRATE) as ser:
-#     print("Порт открыт")
-#     while True:
-#         # test1(ser)
-#         test2(ser)
-
-
-def lerp(a, b, t):
-    return a + (b - a) * t
-
-def alerp(a, b, v):
-    return (v - a) / (b - a)
-
-
-def map_num(value: int, min_i: int, max_i: int, min_o: float, max_o: float) -> float:
-    ratio = alerp(min_i, max_i, value)
-    return lerp(min_o, max_o, ratio)
 
 
 class SerialPlotter:
@@ -75,7 +39,7 @@ class SerialPlotter:
         self.ax1 = fig1.add_subplot(111)
         self.line1, = self.ax1.plot([], [])
 
-        self.ax1.set_ylim(220, 290)
+        self.ax1.set_ylim(0, 1024)
 
         self.canvas1 = FigureCanvasTkAgg(fig1, master=frmGraphEKG)
         self.canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=1)
@@ -87,28 +51,32 @@ class SerialPlotter:
         self.ax2 = fig2.add_subplot(111)
         self.line2, = self.ax2.plot([], [])
 
-        self.ax2.set_ylim(0, 300000)
+        self.ax2.set_ylim(0, 1024)
 
         self.canvas2 = FigureCanvasTkAgg(fig2, master=frmGraphEMG)
         self.canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=1)
 
     def listen_serial(self):
         while self.running:
-            data = self.ser.read(DATA_SIZE)
-            arr = struct.unpack("i", data)
-            print(unpack("i", data))
-            self.queue.put(arr)
+            try:
+                # Чтение строки вместо бинарных данных
+                line = self.ser.readline().decode('latin-1').strip()
+                data1, data2 = map(int, line.split(','))
+                self.queue.put((data1, data2))
+            except:
+                ...
 
 
     def update_plot(self):
+
+
         try:
             while True:
                 num1, num2 = self.queue.get_nowait()
                 self.data1.append(num1)
-                # self.data1.append(map_num(num1, 0, 400000, -1.0, 1.0)) # Инвертированный первый пин
-                print(num1)
-                self.data2.append(num1)
-                self.iter += 1
+                # self.data2.append(map_num(num1, 0, 1024, -1.0, -1.0)) # Инвертированный первый пин
+                self.data2.append(num2)
+                # self.iter += 1
         except queue.Empty:
             ...
 
@@ -124,11 +92,10 @@ class SerialPlotter:
         self.ax2.autoscale_view(scaley=False)
         self.canvas2.draw()
 
-        self.root.after(1, self.update_plot)
+        self.root.after(100, self.update_plot)
 
     def on_close(self):
         self.running = False
         self.thread.join()
         self.ser.close()
         self.root.destroy()
-

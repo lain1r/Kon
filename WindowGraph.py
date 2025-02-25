@@ -1,7 +1,28 @@
 import tkinter as tk
 import numpy as np
+import serial.tools.list_ports
 
-from python.WindowCom import SerialPlotter
+from WindowCom import SerialPlotter
+
+def find_arduino_port():
+    # Список известных VID и PID для Arduino
+    ARDUINO_IDS = [
+        (0x1A86, 0x7523)
+    ]
+
+    # Получить список всех COM-портов
+    ports = serial.tools.list_ports.comports()
+
+    # Поиск подходящего порта
+    for port in ports:
+        if (port.vid, port.pid) in ARDUINO_IDS:
+            return port.device
+
+    # Если Arduino не найдено, вернуть первый доступный порт
+    if ports:
+        return ports[0].device
+
+    return None
 
 PORT = "COM3"
 BAUDRATE = 9600
@@ -84,7 +105,6 @@ frmDivContent.pack(side = tk.LEFT,  fill = tk.BOTH, expand = 1)
 
 frmDivGraph = tk.Frame(frmDivContent)
 frmDivGraph.pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
-
 
 
 
